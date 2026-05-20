@@ -8,7 +8,7 @@ BOT_TOKEN = "8584559549:AAGcj1iJ_njxd2xP_X8vkbTLb92BQnv-34s"
 # 2. ضع معرف التلغرام الخاص بك (كأدمن) لتصلك إشعارات الدفع (أرقام بدون فواصل)
 ADMIN_ID =    6062763146 
 
-bot = telebot.TeleBot(8584559549:AAGcj1iJ_njxd2xP_X8vkbTLb92BQnv-34s)
+bot = telebot.TeleBot(BOT_TOKEN) 
 ACCOUNTS_FILE = "accounts_stock.json"
 PENDING_ORDERS = {}
 
