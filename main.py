@@ -3,12 +3,12 @@ def get_github_file():
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     response = requests.get(url, headers=headers)
     
+    # إضافة هذا السطر للطباعة في Termux لتعرف أين المشكلة
+    print(f"Status Code: {response.status_code}")
+    print(f"Response: {response.text}")
+    
     if response.status_code != 200:
-        raise Exception(f"خطأ في الاتصال: {response.status_code} - تأكد من اسم المستودع والملف")
+        raise Exception(f"خطأ: {response.status_code}")
         
     data = response.json()
-    if 'content' not in data:
-        raise Exception("الملف فارغ أو غير موجود")
-        
-    content = base64.b64decode(data['content']).decode('utf-8')
-    return content, data['sha']
+    # ... باقي الكود
