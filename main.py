@@ -5,7 +5,6 @@ import base64
 from flask import Flask
 from threading import Thread
 
-# إعدادات البوت
 TOKEN = os.environ.get('TOKEN')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 REPO = os.environ.get('REPO')
@@ -18,8 +17,13 @@ app = Flask(__name__)
 def home():
     return "البوت يعمل الآن!"
 
+# دالة تشغيل الويب
 def run_web():
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+
+# دالة تشغيل البوت
+def run_bot():
+    bot.polling(none_stop=True)
 
 @bot.message_handler(commands=['get'])
 def handle_get(message):
@@ -36,7 +40,7 @@ def handle_get(message):
         bot.reply_to(message, f"حدث خطأ: {str(e)}")
 
 if __name__ == "__main__":
-    # تشغيل الويب في خيط منفصل (Thread)
+    # تشغيل الويب في Thread منفصل
     Thread(target=run_web).start()
-    # تشغيل البوت
-    bot.polling(none_stop=True)
+    # تشغيل البوت في الـ Main Thread
+    run_bot()
