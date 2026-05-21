@@ -2,49 +2,50 @@ import os
 import telebot
 import requests
 import base64
-from flask import Flask
-from threading import Thread
 
-# إعدادات البوت من المتغيرات البيئية
 TOKEN = os.environ.get('TOKEN')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 REPO = os.environ.get('REPO')
 FILE_PATH = os.environ.get('FILE_PATH')
 
 bot = telebot.TeleBot(TOKEN)
-app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "البوت يعمل الآن ومستعد لاستقبال الأوامر!"
+# دالة لجلب البيانات
+def get_file_content():
+    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        return r.json()['sha'], base64.b64decode(r.json()['content']).decode('utf-8')
+    return None, None
 
-# دالة تشغيل سيرفر الويب (لإبقاء الخدمة نشطة)
-def run_web():
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
-
-# دالة تشغيل البوت
-def run_bot():
-    print("البوت بدأ الآن بالاتصال بتليجرام...")
-    # إضافة interval و timeout لتحسين استجابة البوت على السيرفر
-    bot.polling(none_stop=True, interval=1, timeout=60)
+# دالة لتحديث البيانات
+@bot.message_handler(commands=['edit'])
+def edit_data(message):
+    new_text = message.text.replace('/edit', '').strip()
+    if not new_text:
+        bot.reply_to(message, "يرجى كتابة النص الجديد بعد الأمر /edit")
+        return
+    
+    sha, _ = get_file_content()
+    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    data = {
+        "message": "Update from Bot",
+        "content": base64.b64encode(new_text.encode()).decode(),
+        "sha": sha
+    }
+    r = requests.put(url, headers=headers, json=data)
+    
+    if r.status_code == 200:
+        bot.reply_to(message, "تم تحديث بيانات الموقع بنجاح!")
+    else:
+        bot.reply_to(message, f"خطأ في التحديث: {r.status_code}")
 
 @bot.message_handler(commands=['get'])
 def handle_get(message):
-    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    try:
-        r = requests.get(url, headers=headers)
-        if r.status_code == 200:
-            content = base64.b64decode(r.json()['content']).decode('utf-8')
-            bot.reply_to(message, f"المحتوى:\n{content}")
-        else:
-            bot.reply_to(message, f"حدث خطأ أثناء الاتصال بـ GitHub: {r.status_code}")
-    except Exception as e:
-        bot.reply_to(message, f"حدث خطأ برمجياً: {str(e)}")
+    _, content = get_file_content()
+    bot.reply_to(message, f"المحتوى الحالي:\n{content}")
 
-if __name__ == "__main__":
-    # تشغيل الويب في Thread منفصل
-    Thread(target=run_web).start()
-    # تشغيل البوت
-    run_bot()
+print("البوت يعمل الآن ومستعد للتحكم...")
+bot.infinity_polling()
