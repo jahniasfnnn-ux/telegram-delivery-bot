@@ -5,6 +5,7 @@ import base64
 from flask import Flask
 from threading import Thread
 
+# إعدادات البوت
 TOKEN = os.environ.get('TOKEN')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 REPO = os.environ.get('REPO')
@@ -23,6 +24,7 @@ def run_web():
 
 # دالة تشغيل البوت
 def run_bot():
+    print("البوت بدأ الآن بالاتصال بتليجرام...")
     bot.polling(none_stop=True)
 
 @bot.message_handler(commands=['get'])
@@ -42,5 +44,5 @@ def handle_get(message):
 if __name__ == "__main__":
     # تشغيل الويب في Thread منفصل
     Thread(target=run_web).start()
-    # تشغيل البوت في الـ Main Thread
+    # تشغيل البوت
     run_bot()
