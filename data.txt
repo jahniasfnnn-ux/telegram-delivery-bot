@@ -1,0 +1,46 @@
+import telebot
+import requests
+import base64
+
+TOKEN = '8584559549:AAE5cOA8MvZu5yTvrop2QI0WlYqB_bVz-88'
+GITHUB_TOKEN = '8584559549:AAGcj1iJ_njxd2xP_X8vkbTLb92BQnv-34s' # ضع التوكن الخاص بـ GitHub هنا
+REPO = 'jahniasfnnn-ux/my-shop'
+FILE_PATH = 'data.txt'
+
+bot = telebot.TeleBot(TOKEN)
+
+def get_github_file():
+    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    content = base64.b64decode(data['content']).decode('utf-8')
+    return content, data['sha']
+
+def update_github_file(new_content, sha):
+    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    data = {
+        "message": "Update account list",
+        "content": base64.b64encode(new_content.encode('utf-8')).decode('utf-8'),
+        "sha": sha
+    }
+    requests.put(url, headers=headers, json=data)
+
+@bot.message_handler(commands=['get'])
+def handle_get(message):
+    try:
+        content, sha = get_github_file()
+        lines = content.strip().split('\n')
+        if not lines or lines == ['']:
+            bot.reply_to(message, "لا توجد حسابات.")
+            return
+        
+        account = lines[0]
+        new_content = '\n'.join(lines[1:])
+        update_github_file(new_content, sha)
+        bot.reply_to(message, f"حسابك هو: {account}")
+    except Exception:
+        bot.reply_to(message, "حدث خطأ.")
+
+bot.polling()
