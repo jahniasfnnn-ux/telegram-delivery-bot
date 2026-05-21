@@ -5,7 +5,7 @@ import base64
 from flask import Flask
 from threading import Thread
 
-# إعدادات البوت
+# إعدادات البوت من المتغيرات البيئية
 TOKEN = os.environ.get('TOKEN')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
 REPO = os.environ.get('REPO')
@@ -16,16 +16,18 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "البوت يعمل الآن!"
+    return "البوت يعمل الآن ومستعد لاستقبال الأوامر!"
 
-# دالة تشغيل الويب
+# دالة تشغيل سيرفر الويب (لإبقاء الخدمة نشطة)
 def run_web():
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
 
 # دالة تشغيل البوت
 def run_bot():
     print("البوت بدأ الآن بالاتصال بتليجرام...")
-    bot.polling(none_stop=True)
+    # إضافة interval و timeout لتحسين استجابة البوت على السيرفر
+    bot.polling(none_stop=True, interval=1, timeout=60)
 
 @bot.message_handler(commands=['get'])
 def handle_get(message):
@@ -37,9 +39,9 @@ def handle_get(message):
             content = base64.b64decode(r.json()['content']).decode('utf-8')
             bot.reply_to(message, f"المحتوى:\n{content}")
         else:
-            bot.reply_to(message, f"خطأ GitHub: {r.status_code}")
+            bot.reply_to(message, f"حدث خطأ أثناء الاتصال بـ GitHub: {r.status_code}")
     except Exception as e:
-        bot.reply_to(message, f"حدث خطأ: {str(e)}")
+        bot.reply_to(message, f"حدث خطأ برمجياً: {str(e)}")
 
 if __name__ == "__main__":
     # تشغيل الويب في Thread منفصل
