@@ -1,66 +1,58 @@
-import os
-import telebot
-import requests
-import base64
+import os, telebot, requests, base64
 from telebot import types
 from flask import Flask
 from threading import Thread
 
-# تشغيل خادم ويب وهمي (ليظل البوت متصلاً)
+# تشغيل خادم ويب وهمي لـ Render
 app = Flask(__name__)
 @app.route('/')
-def home(): return "Bot is active!"
-def run(): app.run(host='0.0.0.0', port=10000)
+def home(): return "Bot is live!"
+def run_web(): app.run(host='0.0.0.0', port=10000)
 
 TOKEN = os.environ.get('TOKEN')
-GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
-REPO = os.environ.get('REPO')
-FILE_PATH = os.environ.get('FILE_PATH')
-SITE_URL = os.environ.get('SITE_URL') # ضف رابط موقعك في Environment Variables في Render
-
 bot = telebot.TeleBot(TOKEN)
 
-def get_file_content():
-    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    r = requests.get(url, headers=headers)
-    if r.status_code == 200:
-        return r.json()['sha'], base64.b64decode(r.json()['content']).decode('utf-8')
+# دالة لجلب البيانات
+def get_data():
+    try:
+        url = f"https://api.github.com/repos/{os.environ.get('REPO')}/contents/{os.environ.get('FILE_PATH')}"
+        headers = {"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            d = r.json()
+            return d['sha'], base64.b64decode(d['content']).decode('utf-8')
+    except: pass
     return None, None
 
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    b1 = types.InlineKeyboardButton("👁‍🗨 عرض البيانات", callback_data="get_data")
-    b2 = types.InlineKeyboardButton("✏️ تعديل البيانات", callback_data="edit_prompt")
-    b3 = types.InlineKeyboardButton("📊 حالة الموقع", callback_data="status")
-    b4 = types.InlineKeyboardButton("🌐 رابط الموقع", callback_data="link")
-    markup.add(b1, b2, b3, b4)
-    bot.send_message(message.chat.id, "مرحباً! اختر إجراءً من لوحة التحكم:", reply_markup=markup)
+def start(m):
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    kb.add(types.InlineKeyboardButton("👁‍🗨 عرض", callback_data="get"),
+           types.InlineKeyboardButton("✏️ تعديل", callback_data="edit"),
+           types.InlineKeyboardButton("📊 حالة", callback_data="stat"),
+           types.InlineKeyboardButton("🌐 رابط", callback_data="link"))
+    bot.send_message(m.chat.id, "لوحة التحكم جاهزة:", reply_markup=kb)
 
-@bot.callback_query_handler(func=lambda call: True)
-def callback_query(call):
-    bot.answer_callback_query(call.id)
-    if call.data == "get_data":
-        _, content = get_file_content()
-        bot.send_message(call.message.chat.id, f"المحتوى الحالي:\n{content}")
-    elif call.data == "edit_prompt":
-        bot.send_message(call.message.chat.id, "أرسل النص الجديد:")
-        bot.register_next_step_handler(call.message, process_edit)
-    elif call.data == "status":
-        bot.send_message(call.message.chat.id, "✅ البوت يعمل بكفاءة.")
-    elif call.data == "link":
-        bot.send_message(call.message.chat.id, f"رابط موقعك: {SITE_URL}")
+@bot.callback_query_handler(func=lambda c: True)
+def cb(c):
+    bot.answer_callback_query(c.id)
+    if c.data == "get":
+        _, txt = get_data()
+        bot.send_message(c.message.chat.id, txt or "فارغ")
+    elif c.data == "edit":
+        bot.send_message(c.message.chat.id, "أرسل النص الجديد:")
+        bot.register_next_step_handler(c.message, lambda m: update(m))
+    elif c.data == "stat": bot.send_message(c.message.chat.id, "✅ يعمل")
+    elif c.data == "link": bot.send_message(c.message.chat.id, os.environ.get('SITE_URL', 'لا يوجد'))
 
-def process_edit(message):
-    new_text = message.text
-    sha, _ = get_file_content()
-    url = f"https://api.github.com/repos/{REPO}/contents/{FILE_PATH}"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    data = {"message": "Update", "content": base64.b64encode(new_text.encode()).decode(), "sha": sha}
-    requests.put(url, headers=headers, json=data)
-    bot.send_message(message.chat.id, "تم التحديث بنجاح!")
+def update(m):
+    sha, _ = get_data()
+    if sha:
+        url = f"https://api.github.com/repos/{os.environ.get('REPO')}/contents/{os.environ.get('FILE_PATH')}"
+        requests.put(url, headers={"Authorization": f"token {os.environ.get('GITHUB_TOKEN')}"}, 
+                     json={"message":"upd", "content":base64.b64encode(m.text.encode()).decode(), "sha":sha})
+        bot.send_message(m.chat.id, "تم التحديث!")
 
 if __name__ == "__main__":
-    Thread(target=run).start()
+    Thread(target=run_web).start()
     bot.infinity_polling()
